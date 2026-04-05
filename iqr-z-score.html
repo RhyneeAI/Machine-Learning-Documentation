@@ -68,6 +68,8 @@
     .method-badge { padding: 0.35rem 0.9rem; border-radius: 20px; font-family: var(--mono); font-size: 0.72rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--muted); transition: all 0.15s; }
     .method-badge.act-iqr { border-color: var(--accent); color: var(--accent); background: rgba(110,231,183,0.08); }
     .method-badge.act-z { border-color: var(--accent2); color: var(--accent2); background: rgba(56,189,248,0.08); }
+    .imp-badge { padding: 0.35rem 0.9rem; border-radius: 20px; font-family: var(--mono); font-size: 0.72rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--muted); transition: all 0.15s; }
+    .imp-badge.act-imp { border-color: var(--warn); color: var(--warn); background: rgba(251,191,36,0.08); }
     .feature-block { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 1.5rem; overflow: hidden; }
     .feature-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: var(--surface2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
     .feature-name { font-family: var(--mono); font-weight: 700; font-size: 0.9rem; }
@@ -280,13 +282,37 @@ $(function () {
     }
   });
 
+  // Default dataset (soal sebelumnya: Usia, IPK, Skor_Wawancara)
+  const defaultData = {
+    colNames: ['Usia', 'IPK', 'Skor_Wawancara'],
+    rows: [
+      [25, 3.50, 70],
+      [30, 3.20, 80],
+      [22, '',   60],
+      [35, 3.80, ''],
+      [28, 3.40, 75],
+      [85, 3.60, 70],
+      [27, 3.10, 65],
+      [21, '',   55],
+      [40, 3.90, 150],
+      [32, 3.30, 75],
+      [26, 3.00, ''],
+      [38, 3.70, 85],
+    ]
+  };
+
   let nR = 12, nC = 3, colNames = [];
 
   // ── Generate ──────────────────────────────────────────────
   $('#btnGen').on('click', function () {
     nR = Math.max(2, parseInt($('#numRows').val()) || 12);
     nC = Math.max(1, parseInt($('#numCols').val()) || 3);
-    colNames = Array.from({ length: nC }, (_, i) => 'Fitur_' + String.fromCharCode(65 + i));
+
+    // Pakai nama kolom default jika nC cocok, kalau tidak pakai generic
+    const useDefault = (nR === defaultData.rows.length && nC === defaultData.colNames.length);
+    colNames = Array.from({ length: nC }, (_, i) =>
+      useDefault ? defaultData.colNames[i] : 'Fitur_' + String.fromCharCode(65 + i)
+    );
 
     let h = '<thead><tr><th style="width:42px;">#</th>';
     for (let c = 0; c < nC; c++)
@@ -295,8 +321,10 @@ $(function () {
 
     for (let r = 0; r < nR; r++) {
       h += `<tr><td style="color:var(--muted);text-align:center;font-family:var(--mono);">${r+1}</td>`;
-      for (let c = 0; c < nC; c++)
-        h += `<td><input type="text" class="cell" data-r="${r}" data-c="${c}" placeholder="null" /></td>`;
+      for (let c = 0; c < nC; c++) {
+        const def = useDefault ? defaultData.rows[r][c] : '';
+        h += `<td><input type="text" class="cell" data-r="${r}" data-c="${c}" placeholder="null" value="${def}" /></td>`;
+      }
       h += '</tr>';
     }
     h += '</tbody>';
@@ -313,19 +341,34 @@ $(function () {
   });
 
   function buildMethodSel() {
-    let h = '';
+    let h = `<div style="display:grid;grid-template-columns:130px 1fr 1fr;gap:0.4rem;margin-bottom:0.5rem;font-family:var(--mono);font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);padding:0 0.1rem;">
+      <span>Fitur</span><span>Outlier Method</span><span>Imputasi Null</span>
+    </div>`;
     for (let c = 0; c < nC; c++) {
-      h += `<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.55rem;">
-        <span style="font-family:var(--mono);font-size:0.8rem;min-width:120px;" id="ml-${c}">${colNames[c]}</span>
-        <button class="method-badge act-iqr" data-c="${c}" data-m="iqr">IQR</button>
-        <button class="method-badge" data-c="${c}" data-m="z">Z-Score</button>
+      h += `<div style="display:grid;grid-template-columns:130px 1fr 1fr;align-items:center;gap:0.75rem;margin-bottom:0.65rem;">
+        <span style="font-family:var(--mono);font-size:0.8rem;" id="ml-${c}">${colNames[c]}</span>
+        <div style="display:flex;gap:0.5rem;">
+          <button class="method-badge act-iqr" data-c="${c}" data-m="iqr">IQR</button>
+          <button class="method-badge" data-c="${c}" data-m="z">Z-Score</button>
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+          <button class="imp-badge act-imp" data-c="${c}" data-imp="median">Median</button>
+          <button class="imp-badge" data-c="${c}" data-imp="mean">Mean</button>
+        </div>
       </div>`;
     }
     $('#methodSel').html(h);
+
     $(document).off('click', '.method-badge').on('click', '.method-badge', function () {
       const c = $(this).data('c');
       $(`.method-badge[data-c="${c}"]`).removeClass('act-iqr act-z');
       $(this).addClass($(this).data('m') === 'iqr' ? 'act-iqr' : 'act-z');
+    });
+
+    $(document).off('click', '.imp-badge').on('click', '.imp-badge', function () {
+      const c = $(this).data('c');
+      $(`.imp-badge[data-c="${c}"]`).removeClass('act-imp');
+      $(this).addClass('act-imp');
     });
   }
 
@@ -349,13 +392,14 @@ $(function () {
 
     for (let c = 0; c < nC; c++) {
       const m = ($(`.method-badge.act-iqr[data-c="${c}"]`).length ? 'iqr' : 'z');
+      const impMethod = $(`.imp-badge.act-imp[data-c="${c}"]`).data('imp') || 'median';
       const colRaw = raw.map(r => r[c]);
       const valid = colRaw.filter(v => v !== null && !isNaN(v));
       if (!valid.length) continue;
-      const med = median(valid);
-      const imp = colRaw.map((v, i) => ({ val: (v === null || isNaN(v)) ? med : v, imp: (v === null || isNaN(v)), row: i + 1 }));
+      const impVal = impMethod === 'mean' ? mean(valid) : median(valid);
+      const imp = colRaw.map((v, i) => ({ val: (v === null || isNaN(v)) ? impVal : v, imp: (v === null || isNaN(v)), row: i + 1 }));
       const vals = imp.map(d => d.val);
-      html += m === 'iqr' ? renderIQR(colNames[c], imp, vals, iqrK, med) : renderZ(colNames[c], imp, vals, zThr, med);
+      html += m === 'iqr' ? renderIQR(colNames[c], imp, vals, iqrK, impVal, impMethod) : renderZ(colNames[c], imp, vals, zThr, impVal, impMethod);
     }
 
     html += '</div>';
@@ -364,7 +408,7 @@ $(function () {
   });
 
   // ── IQR ────────────────────────────────────────────────────
-  function renderIQR(name, imp, vals, k, medImp) {
+  function renderIQR(name, imp, vals, k, impVal, impMethod) {
     const sorted = [...vals].sort((a, b) => a - b);
     const n = sorted.length;
     const posQ1 = (n + 1) * 0.25, posQ3 = (n + 1) * 0.75;
@@ -403,7 +447,7 @@ $(function () {
         <div class="step">
           <div class="step-label">Data Terurutkan</div>
           <div class="chip-row">${chips}</div>
-          ${imp.some(d=>d.imp) ? `<div class="notice" style="margin-top:0.5rem;">⚠ Null diimputasi median = <b>${f(medImp)}</b> — ditandai <span style="color:var(--warn);">kuning</span></div>` : ''}
+          ${imp.some(d=>d.imp) ? `<div class="notice" style="margin-top:0.5rem;">⚠ Null diimputasi dengan <b>${impMethod === 'mean' ? 'Mean' : 'Median'}</b> = <b>${f(impVal)}</b> — ditandai <span style="color:var(--warn);">kuning</span></div>` : ''}
         </div>
 
         <div class="step">
@@ -459,7 +503,7 @@ $(function () {
   }
 
   // ── Z-Score ─────────────────────────────────────────────────
-  function renderZ(name, imp, vals, thr, medImp) {
+  function renderZ(name, imp, vals, thr, impVal, impMethod) {
     const n = vals.length;
     const mean = vals.reduce((a,b)=>a+b,0) / n;
     const sumSq = vals.reduce((s,v)=>s+Math.pow(v-mean,2), 0);
@@ -508,7 +552,7 @@ $(function () {
         <div class="step">
           <div class="step-label">Data Setelah Imputasi</div>
           <div class="chip-row">${chips}</div>
-          ${imp.some(d=>d.imp) ? `<div class="notice" style="margin-top:0.5rem;">⚠ Null diimputasi median = <b>${f(medImp)}</b> — ditandai <span style="color:var(--warn);">kuning</span></div>` : ''}
+          ${imp.some(d=>d.imp) ? `<div class="notice" style="margin-top:0.5rem;">⚠ Null diimputasi dengan <b>${impMethod === 'mean' ? 'Mean' : 'Median'}</b> = <b>${f(impVal)}</b> — ditandai <span style="color:var(--warn);">kuning</span></div>` : ''}
         </div>
 
         <div class="step">
@@ -555,8 +599,13 @@ $(function () {
 
   // ── Helpers ─────────────────────────────────────────────────
   function median(arr) {
+    if (!arr.length) return 0;
     const s = [...arr].sort((a,b)=>a-b), m = Math.floor(s.length/2);
     return s.length%2 ? s[m] : (s[m-1]+s[m])/2;
+  }
+  function mean(arr) {
+    if (!arr.length) return 0;
+    return arr.reduce((a,b)=>a+b,0) / arr.length;
   }
   function qtl(sorted, pos) {
     const fl = Math.floor(pos), cl = Math.ceil(pos);
