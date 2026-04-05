@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ML Tools — Study Kit</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0a0c10;
+      --surface: #11141b;
+      --surface2: #181c26;
+      --border: #1f2435;
+      --text: #e2e8f0;
+      --muted: #4a5568;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Sora', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; overflow-x: hidden; }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* Animated grid bg */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Glow blobs */
+    .blob { position: fixed; border-radius: 50%; filter: blur(120px); opacity: 0.12; pointer-events: none; z-index: 0; }
+    .blob-1 { width: 500px; height: 500px; background: #6366f1; top: -150px; left: -150px; }
+    .blob-2 { width: 400px; height: 400px; background: #0ea5e9; bottom: -100px; right: -100px; }
+
+    .container { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 3rem 1.5rem 4rem; }
+
+    /* Header */
+    .header { text-align: center; margin-bottom: 4rem; }
+    .header .eyebrow { font-family: var(--mono); font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.2em; color: var(--muted); margin-bottom: 1rem; display: inline-flex; align-items: center; gap: 0.5rem; }
+    .header .eyebrow::before, .header .eyebrow::after { content: '──'; opacity: 0.4; }
+    .header h1 { font-family: var(--mono); font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 1rem; }
+    .header h1 .grad { background: linear-gradient(135deg, #a78bfa, #38bdf8, #34d399); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .header p { color: var(--muted); font-size: 0.9rem; max-width: 480px; margin: 0 auto; line-height: 1.7; }
+
+    /* Search */
+    .search-wrap { position: relative; max-width: 400px; margin: 0 auto 3rem; }
+    .search-wrap input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      padding: 0.65rem 1rem 0.65rem 2.5rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .search-wrap input:focus { border-color: #6366f1; }
+    .search-wrap input::placeholder { color: var(--muted); }
+    .search-wrap .ico { position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 0.8rem; }
+
+    /* Category filter */
+    .filters { display: flex; gap: 0.5rem; flex-wrap: wrap; justify-content: center; margin-bottom: 2.5rem; }
+    .filter-btn { font-family: var(--mono); font-size: 0.7rem; padding: 0.35rem 0.85rem; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; transition: all 0.15s; }
+    .filter-btn:hover { color: var(--text); border-color: #4a5568; }
+    .filter-btn.active { color: #fff; background: #1e2235; border-color: #6366f1; box-shadow: 0 0 0 1px #6366f1; }
+
+    /* Menu grid */
+    .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; }
+
+    /* Menu card */
+    .menu-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem;
+      text-decoration: none;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      transition: all 0.2s cubic-bezier(.22,.68,0,1.2);
+      position: relative;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .menu-card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, var(--card-color-a, transparent), var(--card-color-b, transparent));
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .menu-card:hover { transform: translateY(-4px); border-color: var(--card-accent, var(--border)); box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
+    .menu-card:hover::before { opacity: 0.04; }
+
+    .card-icon { font-size: 1.75rem; line-height: 1; }
+    .card-top { display: flex; align-items: flex-start; justify-content: space-between; }
+    .card-badge { font-family: var(--mono); font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em; padding: 0.2rem 0.55rem; border-radius: 4px; font-weight: 700; }
+    .card-name { font-family: var(--mono); font-size: 0.95rem; font-weight: 700; line-height: 1.3; }
+    .card-desc { font-size: 0.78rem; color: var(--muted); line-height: 1.6; flex: 1; }
+    .card-tags { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    .card-tag { font-family: var(--mono); font-size: 0.62rem; padding: 0.15rem 0.5rem; border-radius: 4px; background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+    .card-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 0.5rem; border-top: 1px solid var(--border); }
+    .card-link { font-family: var(--mono); font-size: 0.7rem; color: var(--card-accent, var(--muted)); }
+    .card-arrow { font-size: 0.9rem; color: var(--card-accent, var(--muted)); transition: transform 0.2s; }
+    .menu-card:hover .card-arrow { transform: translateX(4px); }
+
+    /* Coming soon */
+    .menu-card.coming-soon { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+    .menu-card.coming-soon:hover { transform: none; box-shadow: none; }
+
+    /* Empty state */
+    .empty-state { text-align: center; padding: 3rem; color: var(--muted); font-family: var(--mono); font-size: 0.8rem; }
+
+    /* Footer */
+    .footer { text-align: center; margin-top: 4rem; font-family: var(--mono); font-size: 0.68rem; color: var(--muted); }
+    .footer span { opacity: 0.5; }
+
+    .fade-in { animation: fi 0.4s ease; }
+    @keyframes fi { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+
+  <div class="container">
+    <div class="header">
+      <div class="eyebrow">Machine Learning</div>
+      <h1>Study <span class="grad">Toolkit</span></h1>
+      <p>Kumpulan tools kalkulator step-by-step untuk belajar konsep Machine Learning & Data Preprocessing</p>
+    </div>
+
+    <!-- Search -->
+    <div class="search-wrap">
+      <span class="ico">🔍</span>
+      <input type="text" id="searchInput" placeholder="Cari tool..."/>
+    </div>
+
+    <!-- Category filters -->
+    <div class="filters" id="filterBar"></div>
+
+    <!-- Grid -->
+    <div class="menu-grid" id="menuGrid"></div>
+    <div class="empty-state hidden" id="emptyState">Tidak ada tool yang cocok dengan pencarian.</div>
+
+    <div class="footer"><span>ML Study Toolkit · tambahkan menu baru di variabel <code>menuItems</code> dalam script</span></div>
+  </div>
+
+<script>
+  // ╔═══════════════════════════════════════════════════════════════╗
+  // ║  TAMBAH / EDIT MENU DI SINI                                   ║
+  // ║  Salin objek di bawah dan sesuaikan isinya                    ║
+  // ╚═══════════════════════════════════════════════════════════════╝
+  const menuItems = [
+    {
+      name: 'Outlier Detector',
+      desc: 'Deteksi outlier step-by-step menggunakan metode IQR dan Z-Score. Support missing value, threshold kustom, dan encoding tips.',
+      icon: '📊',
+      file: 'iqr-z-score.html',
+      category: 'Preprocessing',
+      tags: ['IQR', 'Z-Score', 'Missing Value', 'Outlier'],
+      accent: '#6ee7b7',
+      colorA: '#064e3b',
+      colorB: '#0c4a6e',
+      status: 'ready', // 'ready' | 'coming-soon'
+    },
+    {
+      name: 'Linear Regression',
+      desc: 'Hitung slope, intercept, residual, MSE, RMSE, MAE, dan R² step-by-step. Lengkap dengan tabel bantu dan interpretasi model.',
+      icon: '📈',
+      file: 'linear-regression.html',
+      category: 'Supervised Learning',
+      tags: ['Slope', 'Intercept', 'MSE', 'RMSE', 'MAE', 'R²'],
+      accent: '#a78bfa',
+      colorA: '#3b0764',
+      colorB: '#1e1b4b',
+      status: 'ready',
+    },
+
+    // ── Contoh template menu baru (hapus komen untuk aktifkan) ──
+    // {
+    //   name: 'Logistic Regression',
+    //   desc: 'Klasifikasi biner dengan sigmoid function. Hitung probabilitas, confusion matrix, precision, recall, F1-score.',
+    //   icon: '🔵',
+    //   file: 'logistic-regression.html',
+    //   category: 'Supervised Learning',
+    //   tags: ['Sigmoid', 'Confusion Matrix', 'F1-Score'],
+    //   accent: '#fb923c',
+    //   colorA: '#431407',
+    //   colorB: '#1c1917',
+    //   status: 'coming-soon',
+    // },
+    // {
+    //   name: 'K-Means Clustering',
+    //   desc: 'Clustering data tanpa label. Visualisasi centroid, iterasi, dan SSE (Sum of Squared Errors).',
+    //   icon: '🔵',
+    //   file: 'kmeans.html',
+    //   category: 'Unsupervised Learning',
+    //   tags: ['Centroid', 'SSE', 'Iterasi'],
+    //   accent: '#38bdf8',
+    //   colorA: '#0c4a6e',
+    //   colorB: '#082f49',
+    //   status: 'coming-soon',
+    // },
+    // {
+    //   name: 'Naive Bayes',
+    //   desc: 'Klasifikasi probabilistik berbasis Teorema Bayes. Hitung prior, likelihood, dan posterior probability.',
+    //   icon: '🎲',
+    //   file: 'naive-bayes.html',
+    //   category: 'Supervised Learning',
+    //   tags: ['Bayes', 'Prior', 'Posterior'],
+    //   accent: '#f472b6',
+    //   colorA: '#500724',
+    //   colorB: '#1e1b4b',
+    //   status: 'coming-soon',
+    // },
+    // {
+    //   name: 'Decision Tree',
+    //   desc: 'Visualisasi pohon keputusan. Hitung Gini Impurity / Information Gain untuk setiap split.',
+    //   icon: '🌳',
+    //   file: 'decision-tree.html',
+    //   category: 'Supervised Learning',
+    //   tags: ['Gini', 'Entropy', 'Split'],
+    //   accent: '#34d399',
+    //   colorA: '#064e3b',
+    //   colorB: '#022c22',
+    //   status: 'coming-soon',
+    // },
+    // {
+    //   name: 'Normalisasi & Standarisasi',
+    //   desc: 'Min-Max Scaling, Z-Score Standardization, dan perbandingan hasil sebelum/sesudah transformasi.',
+    //   icon: '⚖️',
+    //   file: 'normalization.html',
+    //   category: 'Preprocessing',
+    //   tags: ['Min-Max', 'Z-Score', 'Scaling'],
+    //   accent: '#fbbf24',
+    //   colorA: '#451a03',
+    //   colorB: '#1c1917',
+    //   status: 'coming-soon',
+    // },
+  ];
+
+  // ── Render ──────────────────────────────────────────────────────
+  const categories = ['Semua', ...new Set(menuItems.map(m => m.category))];
+  let activeCategory = 'Semua';
+  let searchQuery = '';
+
+  function renderFilters() {
+    const bar = $('#filterBar');
+    bar.empty();
+    categories.forEach(cat => {
+      bar.append(`<button class="filter-btn ${cat === activeCategory ? 'active' : ''}" data-cat="${cat}">${cat}</button>`);
+    });
+  }
+
+  function renderGrid() {
+    const grid = $('#menuGrid');
+    grid.empty();
+
+    const filtered = menuItems.filter(m => {
+      const matchCat = activeCategory === 'Semua' || m.category === activeCategory;
+      const q = searchQuery.toLowerCase();
+      const matchSearch = !q || m.name.toLowerCase().includes(q) || m.desc.toLowerCase().includes(q) || m.tags.some(t => t.toLowerCase().includes(q));
+      return matchCat && matchSearch;
+    });
+
+    if (!filtered.length) {
+      $('#emptyState').removeClass('hidden');
+      return;
+    }
+    $('#emptyState').addClass('hidden');
+
+    filtered.forEach((m, i) => {
+      const isReady = m.status === 'ready';
+      const badge = isReady
+        ? `<span class="card-badge" style="background:rgba(52,211,153,0.15);color:#34d399;">Tersedia</span>`
+        : `<span class="card-badge" style="background:rgba(100,116,139,0.15);color:#64748b;">Segera</span>`;
+
+      const tags = m.tags.map(t => `<span class="card-tag">${t}</span>`).join('');
+
+      const card = $(`
+        <div class="menu-card ${isReady ? '' : 'coming-soon'} fade-in"
+          style="--card-accent:${m.accent};--card-color-a:${m.colorA};--card-color-b:${m.colorB};animation-delay:${i*0.06}s">
+          <div class="card-top">
+            <div class="card-icon">${m.icon}</div>
+            ${badge}
+          </div>
+          <div>
+            <div class="card-name">${m.name}</div>
+            <div style="font-family:var(--mono);font-size:0.62rem;text-transform:uppercase;letter-spacing:0.08em;color:${m.accent};margin-top:0.2rem;opacity:0.8;">${m.category}</div>
+          </div>
+          <div class="card-desc">${m.desc}</div>
+          <div class="card-tags">${tags}</div>
+          <div class="card-footer">
+            <span class="card-link">${isReady ? m.file : 'coming soon'}</span>
+            <span class="card-arrow">${isReady ? '→' : '⏳'}</span>
+          </div>
+        </div>
+      `);
+
+      if (isReady) {
+        card.on('click', () => { window.location.href = m.file; });
+      }
+
+      grid.append(card);
+    });
+  }
+
+  // Events
+  $(document).on('click', '.filter-btn', function () {
+    activeCategory = $(this).data('cat');
+    renderFilters();
+    renderGrid();
+  });
+
+  $('#searchInput').on('input', function () {
+    searchQuery = $(this).val();
+    renderGrid();
+  });
+
+  // Init
+  renderFilters();
+  renderGrid();
+</script>
+</body>
+</html>
