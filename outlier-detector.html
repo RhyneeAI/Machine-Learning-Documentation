@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Outlier Detector</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --surface2: #1a1e28;
+      --border: #252a38;
+      --accent: #6ee7b7;
+      --accent2: #38bdf8;
+      --warn: #fbbf24;
+      --danger: #f87171;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --mono: 'JetBrains Mono', monospace;
+      --sans: 'Sora', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--surface); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .mono { font-family: var(--mono); }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 32px 32px;
+      opacity: 0.25;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .container { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+    .header { text-align: center; margin-bottom: 3rem; }
+    .header h1 { font-family: var(--mono); font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; }
+    .header h1 span.iq { color: var(--accent); }
+    .header h1 span.zs { color: var(--accent2); }
+    .header p { color: var(--muted); font-size: 0.875rem; margin-top: 0.5rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .card-title { font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 1rem; }
+    .config-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+    .field { display: flex; flex-direction: column; gap: 0.4rem; }
+    .field label { font-size: 0.72rem; color: var(--muted); font-family: var(--mono); }
+    .field input, .field select { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: var(--mono); font-size: 0.875rem; padding: 0.5rem 0.75rem; outline: none; transition: border-color 0.2s; }
+    .field input:focus { border-color: var(--accent); }
+    .field input[type=number] { width: 110px; }
+    .btn { padding: 0.5rem 1.25rem; border-radius: 6px; font-family: var(--mono); font-size: 0.8rem; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; }
+    .btn-accent { background: var(--accent); color: #0d0f14; }
+    .btn-accent:hover { filter: brightness(1.1); }
+    .btn-primary { background: var(--accent2); color: #0d0f14; }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .tbl-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.8rem; }
+    th { background: var(--surface2); color: var(--muted); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.55rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.015); }
+    td input { background: transparent; border: none; border-bottom: 1px solid var(--border); color: var(--text); font-family: var(--mono); font-size: 0.8rem; width: 100%; outline: none; padding: 2px 4px; min-width: 70px; }
+    td input:focus { border-color: var(--accent); }
+    .col-name-inp { background: transparent; border: none; border-bottom: 1px solid var(--border); color: var(--accent); font-family: var(--mono); font-size: 0.75rem; width: 100px; outline: none; }
+    .method-badge { padding: 0.35rem 0.9rem; border-radius: 20px; font-family: var(--mono); font-size: 0.72rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--muted); transition: all 0.15s; }
+    .method-badge.act-iqr { border-color: var(--accent); color: var(--accent); background: rgba(110,231,183,0.08); }
+    .method-badge.act-z { border-color: var(--accent2); color: var(--accent2); background: rgba(56,189,248,0.08); }
+    .feature-block { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 1.5rem; overflow: hidden; }
+    .feature-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: var(--surface2); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    .feature-name { font-family: var(--mono); font-weight: 700; font-size: 0.9rem; }
+    .method-tag { font-family: var(--mono); font-size: 0.65rem; padding: 0.2rem 0.55rem; border-radius: 4px; font-weight: 600; }
+    .tag-iqr { background: rgba(110,231,183,0.15); color: var(--accent); }
+    .tag-z { background: rgba(56,189,248,0.15); color: var(--accent2); }
+    .feature-body { padding: 1.25rem; }
+    .step { margin-bottom: 1.25rem; }
+    .step-label { font-family: var(--mono); font-size: 0.63rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem; }
+    .step-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+    .fbox { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem 1rem; font-family: var(--mono); font-size: 0.8rem; line-height: 2; }
+    .kw { color: var(--accent2); }
+    .val { color: var(--accent); font-weight: 600; }
+    .res { color: var(--warn); font-weight: 700; }
+    .chip-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 0.2rem 0.5rem; font-family: var(--mono); font-size: 0.75rem; }
+    .chip.imp { border-color: var(--warn); color: var(--warn); }
+    .chip.out { border-color: var(--danger); color: var(--danger); background: rgba(248,113,113,0.08); }
+    .out-found { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.3); color: var(--danger); border-radius: 6px; padding: 0.75rem 1rem; font-family: var(--mono); font-size: 0.82rem; line-height: 1.9; }
+    .out-clean { background: rgba(110,231,183,0.08); border: 1px solid rgba(110,231,183,0.3); color: var(--accent); border-radius: 6px; padding: 0.75rem 1rem; font-family: var(--mono); font-size: 0.82rem; }
+    .notice { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.25); border-radius: 6px; padding: 0.55rem 0.9rem; font-size: 0.75rem; color: var(--warn); font-family: var(--mono); }
+    .divider { height: 1px; background: var(--border); margin: 1rem 0; }
+    .hidden { display: none !important; }
+    .fade-in { animation: fi 0.35s ease; }
+    @keyframes fi { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .z-danger { color: var(--danger); font-weight: 700; }
+    .z-ok { color: var(--muted); }
+    .z-val { color: var(--accent2); }
+    tfoot td { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); padding: 0.5rem 0.75rem; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>Outlier <span class="iq">IQR</span> & <span class="zs">Z-Score</span> Detector</h1>
+    <p>Deteksi outlier step-by-step · Support missing value (null / ? / kosong)</p>
+  </div>
+
+  <!-- Encoding Tips -->
+  <div class="card" id="encodingCard" style="border-color: rgba(110,231,183,0.25);">
+    <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;" id="encodingToggle">
+      <div>
+        <div class="card-title" style="margin-bottom:0.2rem;">📌 Pengingat — Teknik Encoding</div>
+        <p style="font-size:0.75rem;color:var(--muted);font-family:var(--mono);">Klik untuk buka / tutup · 4 teknik utama encoding fitur kategorikal</p>
+      </div>
+      <span id="encodingChevron" style="font-size:1.2rem;color:var(--accent);transition:transform 0.3s;">▾</span>
+    </div>
+
+    <div id="encodingBody" style="margin-top:1.25rem;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1rem;">
+
+        <!-- Label Encoding -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:1rem;">
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;">
+            <span style="background:rgba(110,231,183,0.15);color:var(--accent);font-family:var(--mono);font-size:0.65rem;padding:0.2rem 0.55rem;border-radius:4px;font-weight:700;">01</span>
+            <span style="font-family:var(--mono);font-weight:700;font-size:0.85rem;">Label Encoding</span>
+          </div>
+          <p style="font-size:0.78rem;color:var(--muted);line-height:1.6;margin-bottom:0.75rem;">Ganti kategori dengan angka integer berurutan.</p>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.6rem 0.75rem;font-family:var(--mono);font-size:0.72rem;line-height:1.9;">
+            <span style="color:var(--muted);">Merah</span> → <span style="color:var(--accent);">0</span><br/>
+            <span style="color:var(--muted);">Hijau</span>  → <span style="color:var(--accent);">1</span><br/>
+            <span style="color:var(--muted);">Biru</span>   → <span style="color:var(--accent);">2</span>
+          </div>
+          <div style="margin-top:0.65rem;font-size:0.72rem;line-height:1.6;">
+            <span style="color:var(--accent);">✓</span> <span style="color:var(--muted);">Kolom target / data ordinal</span><br/>
+            <span style="color:var(--danger);">✗</span> <span style="color:var(--muted);">Nominal → model salah anggap ada urutan</span>
+          </div>
+        </div>
+
+        <!-- One-Hot Encoding -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:1rem;">
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;">
+            <span style="background:rgba(56,189,248,0.15);color:var(--accent2);font-family:var(--mono);font-size:0.65rem;padding:0.2rem 0.55rem;border-radius:4px;font-weight:700;">02</span>
+            <span style="font-family:var(--mono);font-weight:700;font-size:0.85rem;">One-Hot Encoding</span>
+          </div>
+          <p style="font-size:0.78rem;color:var(--muted);line-height:1.6;margin-bottom:0.75rem;">Setiap kategori jadi kolom baru berisi 0 atau 1.</p>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.6rem 0.75rem;font-family:var(--mono);font-size:0.7rem;line-height:1.9;">
+            <span style="color:var(--muted);">       _Merah _Hijau _Biru</span><br/>
+            <span style="color:var(--muted);">Merah</span> → <span style="color:var(--accent2);">1</span> &nbsp;&nbsp;<span style="color:var(--accent2);">0</span> &nbsp;&nbsp;<span style="color:var(--accent2);">0</span><br/>
+            <span style="color:var(--muted);">Hijau</span> → <span style="color:var(--accent2);">0</span> &nbsp;&nbsp;<span style="color:var(--accent2);">1</span> &nbsp;&nbsp;<span style="color:var(--accent2);">0</span><br/>
+            <span style="color:var(--muted);">Biru</span>  → <span style="color:var(--accent2);">0</span> &nbsp;&nbsp;<span style="color:var(--accent2);">0</span> &nbsp;&nbsp;<span style="color:var(--accent2);">1</span>
+          </div>
+          <div style="margin-top:0.65rem;font-size:0.72rem;line-height:1.6;">
+            <span style="color:var(--accent);">✓</span> <span style="color:var(--muted);">Nominal, jumlah kategori sedikit</span><br/>
+            <span style="color:var(--danger);">✗</span> <span style="color:var(--muted);">Banyak kategori → dimensi meledak</span>
+          </div>
+        </div>
+
+        <!-- Ordinal Encoding -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:1rem;">
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;">
+            <span style="background:rgba(251,191,36,0.15);color:var(--warn);font-family:var(--mono);font-size:0.65rem;padding:0.2rem 0.55rem;border-radius:4px;font-weight:700;">03</span>
+            <span style="font-family:var(--mono);font-weight:700;font-size:0.85rem;">Ordinal Encoding</span>
+          </div>
+          <p style="font-size:0.78rem;color:var(--muted);line-height:1.6;margin-bottom:0.75rem;">Seperti label encoding, tapi mapping mengikuti urutan yang bermakna.</p>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.6rem 0.75rem;font-family:var(--mono);font-size:0.72rem;line-height:1.9;">
+            <span style="color:var(--muted);">SMA</span> → <span style="color:var(--warn);">1</span><br/>
+            <span style="color:var(--muted);">D3</span>  → <span style="color:var(--warn);">2</span><br/>
+            <span style="color:var(--muted);">S1</span>  → <span style="color:var(--warn);">3</span><br/>
+            <span style="color:var(--muted);">S2</span>  → <span style="color:var(--warn);">4</span>
+          </div>
+          <div style="margin-top:0.65rem;font-size:0.72rem;line-height:1.6;">
+            <span style="color:var(--accent);">✓</span> <span style="color:var(--muted);">Data punya hierarki / tingkatan jelas</span><br/>
+            <span style="color:var(--danger);">✗</span> <span style="color:var(--muted);">Jangan pakai jika urutan tidak natural</span>
+          </div>
+        </div>
+
+        <!-- Binary Encoding -->
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:1rem;">
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem;">
+            <span style="background:rgba(248,113,113,0.15);color:var(--danger);font-family:var(--mono);font-size:0.65rem;padding:0.2rem 0.55rem;border-radius:4px;font-weight:700;">04</span>
+            <span style="font-family:var(--mono);font-weight:700;font-size:0.85rem;">Binary Encoding</span>
+          </div>
+          <p style="font-size:0.78rem;color:var(--muted);line-height:1.6;margin-bottom:0.75rem;">Kategori → angka → representasi biner. Hemat kolom vs One-Hot.</p>
+          <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:0.6rem 0.75rem;font-family:var(--mono);font-size:0.72rem;line-height:1.9;">
+            <span style="color:var(--muted);">Merah</span> → 1 → <span style="color:var(--danger);">001</span><br/>
+            <span style="color:var(--muted);">Hijau</span>  → 2 → <span style="color:var(--danger);">010</span><br/>
+            <span style="color:var(--muted);">Biru</span>   → 3 → <span style="color:var(--danger);">011</span><br/>
+            <span style="color:var(--muted);">Kuning</span> → 4 → <span style="color:var(--danger);">100</span>
+          </div>
+          <div style="margin-top:0.65rem;font-size:0.72rem;line-height:1.6;">
+            <span style="color:var(--accent);">✓</span> <span style="color:var(--muted);">Kategori nominal banyak nilai unik</span><br/>
+            <span style="color:var(--danger);">✗</span> <span style="color:var(--muted);">Lebih kompleks, kurang intuitif</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Kapan pakai -->
+      <div style="margin-top:1rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.9rem 1rem;">
+        <div style="font-family:var(--mono);font-size:0.65rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:0.6rem;">Panduan Cepat — Kapan Pakai Yang Mana?</div>
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;font-family:var(--mono);font-size:0.75rem;">
+          <span style="background:rgba(110,231,183,0.1);border:1px solid rgba(110,231,183,0.3);border-radius:5px;padding:0.3rem 0.7rem;color:var(--accent);">Binary (2 nilai) → Label</span>
+          <span style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);border-radius:5px;padding:0.3rem 0.7rem;color:var(--accent2);">Nominal, sedikit nilai → One-Hot</span>
+          <span style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.3);border-radius:5px;padding:0.3rem 0.7rem;color:var(--warn);">Ada urutan jelas → Ordinal</span>
+          <span style="background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);border-radius:5px;padding:0.3rem 0.7rem;color:var(--danger);">Nominal, banyak nilai → Binary</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 1 Config -->
+  <div class="card">
+    <div class="card-title">01 — Konfigurasi Dataset</div>
+    <div class="config-row">
+      <div class="field">
+        <label>Jumlah Baris</label>
+        <input type="number" id="numRows" value="12" min="2" max="100" />
+      </div>
+      <div class="field">
+        <label>Jumlah Kolom Fitur</label>
+        <input type="number" id="numCols" value="3" min="1" max="10" />
+      </div>
+      <div style="margin-top:auto;">
+        <button class="btn btn-accent" id="btnGen">Generate Tabel</button>
+      </div>
+    </div>
+    <p style="font-size:0.72rem;color:var(--muted);margin-top:0.75rem;font-family:var(--mono);">
+      💡 Isi nama kolom di header tabel · Kosongkan sel / tulis null / ? untuk missing value
+    </p>
+  </div>
+
+  <!-- Step 2 Table -->
+  <div class="card hidden" id="tblCard">
+    <div class="card-title">02 — Input Data</div>
+    <div class="tbl-wrap"><table id="dataTable"></table></div>
+  </div>
+
+  <!-- Step 3 Method -->
+  <div class="card hidden" id="methodCard">
+    <div class="card-title">03 — Metode & Threshold</div>
+    <div style="margin-bottom:1rem;">
+      <div class="field" style="margin-bottom:0.6rem;"><label>Pilih Metode per Fitur</label></div>
+      <div id="methodSel"></div>
+    </div>
+    <div class="divider"></div>
+    <div class="config-row">
+      <div class="field">
+        <label>IQR — Multiplier (k)</label>
+        <input type="number" id="iqrK" value="1.5" step="0.1" min="0.1" />
+      </div>
+      <div class="field">
+        <label>Z-Score — Threshold |Z| &gt;</label>
+        <input type="number" id="zThr" value="3" step="0.1" min="0.1" />
+      </div>
+    </div>
+    <div style="margin-top:1.25rem;">
+      <button class="btn btn-primary" id="btnAnalyze">Analisis Outlier →</button>
+    </div>
+  </div>
+
+  <!-- Result -->
+  <div id="resultSec" class="hidden"></div>
+
+</div>
+
+<script>
+$(function () {
+  // Encoding tips toggle
+  $('#encodingToggle').on('click', function () {
+    const body = $('#encodingBody');
+    const chevron = $('#encodingChevron');
+    if (body.is(':visible')) {
+      body.slideUp(250);
+      chevron.css('transform', 'rotate(-90deg)');
+    } else {
+      body.slideDown(250);
+      chevron.css('transform', 'rotate(0deg)');
+    }
+  });
+
+  let nR = 12, nC = 3, colNames = [];
+
+  // ── Generate ──────────────────────────────────────────────
+  $('#btnGen').on('click', function () {
+    nR = Math.max(2, parseInt($('#numRows').val()) || 12);
+    nC = Math.max(1, parseInt($('#numCols').val()) || 3);
+    colNames = Array.from({ length: nC }, (_, i) => 'Fitur_' + String.fromCharCode(65 + i));
+
+    let h = '<thead><tr><th style="width:42px;">#</th>';
+    for (let c = 0; c < nC; c++)
+      h += `<th><input class="col-name-inp" data-c="${c}" value="${colNames[c]}" /></th>`;
+    h += '</tr></thead><tbody>';
+
+    for (let r = 0; r < nR; r++) {
+      h += `<tr><td style="color:var(--muted);text-align:center;font-family:var(--mono);">${r+1}</td>`;
+      for (let c = 0; c < nC; c++)
+        h += `<td><input type="text" class="cell" data-r="${r}" data-c="${c}" placeholder="null" /></td>`;
+      h += '</tr>';
+    }
+    h += '</tbody>';
+    $('#dataTable').html(h);
+    $('#tblCard, #methodCard').removeClass('hidden').addClass('fade-in');
+    buildMethodSel();
+    $('#resultSec').addClass('hidden').html('');
+  });
+
+  // live col name
+  $(document).on('input', '.col-name-inp', function () {
+    colNames[$(this).data('c')] = $(this).val() || colNames[$(this).data('c')];
+    $(`#ml-${$(this).data('c')}`).text(colNames[$(this).data('c')]);
+  });
+
+  function buildMethodSel() {
+    let h = '';
+    for (let c = 0; c < nC; c++) {
+      h += `<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.55rem;">
+        <span style="font-family:var(--mono);font-size:0.8rem;min-width:120px;" id="ml-${c}">${colNames[c]}</span>
+        <button class="method-badge act-iqr" data-c="${c}" data-m="iqr">IQR</button>
+        <button class="method-badge" data-c="${c}" data-m="z">Z-Score</button>
+      </div>`;
+    }
+    $('#methodSel').html(h);
+    $(document).off('click', '.method-badge').on('click', '.method-badge', function () {
+      const c = $(this).data('c');
+      $(`.method-badge[data-c="${c}"]`).removeClass('act-iqr act-z');
+      $(this).addClass($(this).data('m') === 'iqr' ? 'act-iqr' : 'act-z');
+    });
+  }
+
+  // ── Analyze ────────────────────────────────────────────────
+  $('#btnAnalyze').on('click', function () {
+    $('.col-name-inp').each(function () { colNames[$(this).data('c')] = $(this).val() || colNames[$(this).data('c')]; });
+
+    const raw = [];
+    for (let r = 0; r < nR; r++) {
+      raw[r] = [];
+      for (let c = 0; c < nC; c++) {
+        const v = $(`.cell[data-r="${r}"][data-c="${c}"]`).val().trim();
+        raw[r][c] = (!v || v.toLowerCase() === 'null' || v === '?') ? null : parseFloat(v);
+      }
+    }
+
+    const iqrK = parseFloat($('#iqrK').val()) || 1.5;
+    const zThr = parseFloat($('#zThr').val()) || 3;
+
+    let html = '<div class="fade-in"><div class="card-title" style="font-family:var(--mono);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:1.25rem;">04 — Hasil Analisis Outlier</div>';
+
+    for (let c = 0; c < nC; c++) {
+      const m = ($(`.method-badge.act-iqr[data-c="${c}"]`).length ? 'iqr' : 'z');
+      const colRaw = raw.map(r => r[c]);
+      const valid = colRaw.filter(v => v !== null && !isNaN(v));
+      if (!valid.length) continue;
+      const med = median(valid);
+      const imp = colRaw.map((v, i) => ({ val: (v === null || isNaN(v)) ? med : v, imp: (v === null || isNaN(v)), row: i + 1 }));
+      const vals = imp.map(d => d.val);
+      html += m === 'iqr' ? renderIQR(colNames[c], imp, vals, iqrK, med) : renderZ(colNames[c], imp, vals, zThr, med);
+    }
+
+    html += '</div>';
+    $('#resultSec').html(html).removeClass('hidden');
+    $('html,body').animate({ scrollTop: $('#resultSec').offset().top - 20 }, 400);
+  });
+
+  // ── IQR ────────────────────────────────────────────────────
+  function renderIQR(name, imp, vals, k, medImp) {
+    const sorted = [...vals].sort((a, b) => a - b);
+    const n = sorted.length;
+    const posQ1 = (n + 1) * 0.25, posQ3 = (n + 1) * 0.75;
+    const q1 = qtl(sorted, posQ1), q3 = qtl(sorted, posQ3);
+    const iqr = q3 - q1;
+    const lo = q1 - k * iqr, hi = q3 + k * iqr;
+
+    const fQ1 = Math.floor(posQ1), cQ1 = Math.ceil(posQ1), frQ1 = posQ1 - fQ1;
+    const fQ3 = Math.floor(posQ3), cQ3 = Math.ceil(posQ3), frQ3 = posQ3 - fQ3;
+
+    const q1det = fQ1 === cQ1
+      ? `nilai ke-${fQ1} = <span class="val">${f(sorted[fQ1-1])}</span>`
+      : `<span class="val">${f(sorted[fQ1-1])}</span> + ${f(frQ1)} × (<span class="val">${f(sorted[cQ1-1])}</span> − <span class="val">${f(sorted[fQ1-1])}</span>) = <span class="val">${f(sorted[fQ1-1])}</span> + ${f(frQ1 * (sorted[cQ1-1]-sorted[fQ1-1]))} = <span class="res">${f(q1)}</span>`;
+
+    const q3det = fQ3 === cQ3
+      ? `nilai ke-${fQ3} = <span class="val">${f(sorted[fQ3-1])}</span>`
+      : `<span class="val">${f(sorted[fQ3-1])}</span> + ${f(frQ3)} × (<span class="val">${f(sorted[cQ3-1])}</span> − <span class="val">${f(sorted[fQ3-1])}</span>) = <span class="val">${f(sorted[fQ3-1])}</span> + ${f(frQ3 * (sorted[cQ3-1]-sorted[fQ3-1]))} = <span class="res">${f(q3)}</span>`;
+
+    const chips = sorted.map(v => {
+      const isOut = v < lo || v > hi;
+      const isImp = imp.some(d => d.val === v && d.imp);
+      return `<span class="chip ${isOut ? 'out' : isImp ? 'imp' : ''}">${f(v)}</span>`;
+    }).join('');
+
+    const outliers = imp.filter(d => d.val < lo || d.val > hi);
+    const hasOut = outliers.length > 0;
+
+    return `<div class="feature-block">
+      <div class="feature-header">
+        <span class="feature-name">${name}</span>
+        <span class="method-tag tag-iqr">IQR</span>
+        <span style="font-family:var(--mono);font-size:0.68rem;color:var(--muted);">n=${n} · k=${k}</span>
+      </div>
+      <div class="feature-body">
+
+        <div class="step">
+          <div class="step-label">Data Terurutkan</div>
+          <div class="chip-row">${chips}</div>
+          ${imp.some(d=>d.imp) ? `<div class="notice" style="margin-top:0.5rem;">⚠ Null diimputasi median = <b>${f(medImp)}</b> — ditandai <span style="color:var(--warn);">kuning</span></div>` : ''}
+        </div>
+
+        <div class="step">
+          <div class="step-label">Posisi Q1 dan Q3</div>
+          <div class="fbox">
+            <span class="kw">Posisi Q1</span> = (n+1) × 0.25 = (${n}+1) × 0.25 = <span class="res">${f(posQ1)}</span><br/>
+            <span class="kw">Posisi Q3</span> = (n+1) × 0.75 = (${n}+1) × 0.75 = <span class="res">${f(posQ3)}</span>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-label">Hitung Q1 — posisi ${f(posQ1)}</div>
+          <div class="fbox">
+            <span class="kw">floor</span>(${f(posQ1)}) = ${fQ1} → data ke-${fQ1} = <span class="val">${f(sorted[fQ1-1])}</span><br/>
+            ${fQ1!==cQ1 ? `<span class="kw">ceil</span>(${f(posQ1)}) = ${cQ1} → data ke-${cQ1} = <span class="val">${f(sorted[cQ1-1])}</span><br/>fraksi = ${f(posQ1)} − ${fQ1} = <span class="val">${f(frQ1)}</span><br/>` : ''}
+            Q1 = ${q1det}
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-label">Hitung Q3 — posisi ${f(posQ3)}</div>
+          <div class="fbox">
+            <span class="kw">floor</span>(${f(posQ3)}) = ${fQ3} → data ke-${fQ3} = <span class="val">${f(sorted[fQ3-1])}</span><br/>
+            ${fQ3!==cQ3 ? `<span class="kw">ceil</span>(${f(posQ3)}) = ${cQ3} → data ke-${cQ3} = <span class="val">${f(sorted[cQ3-1])}</span><br/>fraksi = ${f(posQ3)} − ${fQ3} = <span class="val">${f(frQ3)}</span><br/>` : ''}
+            Q3 = ${q3det}
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-label">Hitung IQR</div>
+          <div class="fbox">
+            IQR = Q3 − Q1 = ${f(q3)} − ${f(q1)} = <span class="res">${f(iqr)}</span>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-label">Batas Outlier</div>
+          <div class="fbox">
+            <span class="kw">Batas Bawah</span> = Q1 − ${k} × IQR = ${f(q1)} − ${k} × ${f(iqr)} = ${f(q1)} − ${f(k*iqr)} = <span class="res">${f(lo)}</span><br/>
+            <span class="kw">Batas Atas</span>  = Q3 + ${k} × IQR = ${f(q3)} + ${k} × ${f(iqr)} = ${f(q3)} + ${f(k*iqr)} = <span class="res">${f(hi)}</span>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-label">Identifikasi Outlier · threshold bawah=${f(lo)}, atas=${f(hi)}</div>
+          ${hasOut
+            ? `<div class="out-found">⚠ OUTLIER DITEMUKAN<br/>${outliers.map(d=>`Baris ${d.row} → nilai <b>${f(d.val)}</b> ${d.val < lo ? '< '+f(lo)+' (melampaui batas bawah)' : '> '+f(hi)+' (melampaui batas atas)'}`).join('<br/>')}</div>`
+            : `<div class="out-clean">✓ Tidak ada outlier — semua nilai dalam rentang [${f(lo)}, ${f(hi)}]</div>`}
+        </div>
+
+      </div>
+    </div>`;
+  }
+
+  // ── Z-Score ─────────────────────────────────────────────────
+  function renderZ(name, imp, vals, thr, medImp) {
+    const n = vals.length;
+    const mean = vals.reduce((a,b)=>a+b,0) / n;
+    const sumSq = vals.reduce((s,v)=>s+Math.pow(v-mean,2), 0);
+    const variance = sumSq / n;
+    const std = Math.sqrt(variance);
+
+    const zData = imp.map(d => ({ ...d, z: std===0 ? 0 : (d.val - mean)/std }));
+    const outliers = zData.filter(d => Math.abs(d.z) > thr);
+    const hasOut = outliers.length > 0;
+
+    const minZ = zData.reduce((a,b) => a.z<b.z?a:b);
+    const maxZ = zData.reduce((a,b) => a.z>b.z?a:b);
+
+    const chips = imp.map(d => {
+      const z = std===0?0:(d.val-mean)/std;
+      const isOut = Math.abs(z) > thr;
+      return `<span class="chip ${isOut?'out':d.imp?'imp':''}">${f(d.val)}</span>`;
+    }).join('');
+
+    const stdRows = imp.map(d =>
+      `<tr><td>${d.row}</td><td class="z-val">${f(d.val)}</td><td>${f(d.val-mean)}</td><td>${f(Math.pow(d.val-mean,2))}</td></tr>`
+    ).join('');
+
+    const zRows = zData.map(d => {
+      const isOut = Math.abs(d.z) > thr;
+      return `<tr>
+        <td>${d.row}</td>
+        <td class="z-val">${f(d.val)}</td>
+        <td style="font-family:var(--mono);font-size:0.78rem;">Z(${f(d.val)}) = (${f(d.val)} − ${f(mean)}) / ${f(std)} = <span class="${isOut?'z-danger':'z-val'}">${f(d.z)}</span></td>
+        <td class="${isOut?'z-danger':'z-ok'}">${isOut ? '⚠ YA' : '✓'}</td>
+      </tr>`;
+    }).join('');
+
+    const sumStr = vals.length <= 15
+      ? vals.map(v=>f(v)).join(' + ')
+      : vals.slice(0,5).map(v=>f(v)).join(' + ') + ' + ··· + ' + vals.slice(-2).map(v=>f(v)).join(' + ');
+
+    return `<div class="feature-block">
+      <div class="feature-header">
+        <span class="feature-name">${name}</span>
+        <span class="method-tag tag-z">Z-Score</span>
+        <span style="font-family:var(--mono);font-size:0.68rem;color:var(--muted);">n=${n} · |Z| > ${thr}</span>
+      </div>
+      <div class="feature-body">
+
+        <div class="step">
+          <div class="step-label">Data Setelah Imputasi</div>
+          <div class="chip-row">${chips}</div>
+          ${imp.some(d=>d.imp) ? `<div class="notice" style="margin-top:0.5rem;">⚠ Null diimputasi median = <b>${f(medImp)}</b> — ditandai <span style="color:var(--warn);">kuning</span></div>` : ''}
+        </div>
+
+        <div class="step">
+          <div class="step-label">Mean (x̄)</div>
+          <div class="fbox">
+            x̄ = (${sumStr}) / ${n} = ${f(vals.reduce((a,b)=>a+b,0))} / ${n} = <span class="res">${f(mean)}</span>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-label">Perhitungan Standar Deviasi (σ) · σ = √[Σ(x − x̄)² / n]</div>
+          <div class="tbl-wrap" style="margin-bottom:0.6rem;">
+            <table>
+              <thead><tr><th>#</th><th>x</th><th>(x − x̄)</th><th>(x − x̄)²</th></tr></thead>
+              <tbody>${stdRows}</tbody>
+              <tfoot><tr><td colspan="3">Σ(x − x̄)²</td><td style="color:var(--warn);font-weight:700;">${f(sumSq)}</td></tr></tfoot>
+            </table>
+          </div>
+          <div class="fbox">
+            σ = √(${f(sumSq)} / ${n}) = √${f(variance)} = <span class="res">${f(std)}</span>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-label">Tabel Z-Score · Z(min) = baris ${minZ.row} [<span style="color:var(--accent2);">${f(minZ.z)}</span>] · Z(max) = baris ${maxZ.row} [<span style="color:var(--accent2);">${f(maxZ.z)}</span>]</div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>#</th><th>Nilai</th><th>Perhitungan Z</th><th>Outlier?</th></tr></thead>
+              <tbody>${zRows}</tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-label">Identifikasi Outlier · threshold |Z| > ${thr}</div>
+          ${hasOut
+            ? `<div class="out-found">⚠ OUTLIER DITEMUKAN<br/>${outliers.map(d=>`Baris ${d.row} → nilai <b>${f(d.val)}</b>, Z = <b>${f(d.z)}</b> → |${f(d.z)}| > ${thr}`).join('<br/>')}</div>`
+            : `<div class="out-clean">✓ Tidak ada outlier — semua |Z| ≤ ${thr}</div>`}
+        </div>
+
+      </div>
+    </div>`;
+  }
+
+  // ── Helpers ─────────────────────────────────────────────────
+  function median(arr) {
+    const s = [...arr].sort((a,b)=>a-b), m = Math.floor(s.length/2);
+    return s.length%2 ? s[m] : (s[m-1]+s[m])/2;
+  }
+  function qtl(sorted, pos) {
+    const fl = Math.floor(pos), cl = Math.ceil(pos);
+    if (fl===cl) return sorted[fl-1];
+    return sorted[fl-1] + (pos-fl)*(sorted[cl-1]-sorted[fl-1]);
+  }
+  function f(v) {
+    if (v===null||v===undefined||isNaN(v)) return '?';
+    const r = Math.round(v * 10000) / 10000;
+    return Number.isInteger(r) ? r.toString() : r.toString();
+  }
+});
+</script>
+</body>
+</html>
