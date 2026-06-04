@@ -38,6 +38,11 @@ RANDOM_STATE = 42
 > Tiga fungsi wajib + identifikasi tipe kolom
 
 ```python
+df = pd.read_csv(csv_path)
+
+print(f'Jumlah baris   : {df.shape[0]}')
+print(f'Jumlah kolom   : {df.shape[1]}')
+
 df.head()       # lihat 5 baris pertama
 df.info()       # tipe data & jumlah non-null
 df.describe()   # statistik deskriptif
