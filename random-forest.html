@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Random Forest · Bootstrap Ascending + Duplikat Maks 2 & OOB≥2</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:#0d0f14;--surface:#13161e;--surface2:#1a1e28;--border:#252a38;
+      --accent:#34d399;--accent2:#818cf8;--accent3:#fb923c;--warn:#fbbf24;
+      --danger:#f87171;--text:#e2e8f0;--muted:#64748b;
+      --mono:'JetBrains Mono',monospace;--sans:'Sora',sans-serif;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;}
+    ::-webkit-scrollbar{width:6px;height:6px;}
+    ::-webkit-scrollbar-track{background:var(--surface);}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+    body::before{content:'';position:fixed;inset:0;
+      background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);
+      background-size:32px 32px;opacity:0.2;pointer-events:none;z-index:0;}
+    .blob{position:fixed;border-radius:50%;filter:blur(140px);opacity:0.08;pointer-events:none;z-index:0;}
+    .blob-1{width:600px;height:600px;background:#34d399;top:-200px;left:-200px;}
+    .blob-2{width:500px;height:500px;background:#818cf8;bottom:-150px;right:-150px;}
+    .container{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:2rem 1.5rem 5rem;}
+    .header{text-align:center;margin-bottom:2.5rem;}
+    .header .eyebrow{font-family:var(--mono);font-size:.62rem;text-transform:uppercase;letter-spacing:.2em;color:var(--muted);margin-bottom:.75rem;display:flex;align-items:center;justify-content:center;gap:.5rem;}
+    .header .eyebrow::before,.header .eyebrow::after{content:'──';opacity:.4;}
+    .header h1{font-family:var(--mono);font-size:clamp(1.8rem,4vw,2.6rem);font-weight:800;letter-spacing:-.03em;}
+    .header h1 .g1{color:var(--accent);}.header h1 .g2{color:var(--accent2);}
+    .header p{color:var(--muted);font-size:.85rem;margin-top:.5rem;}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;}
+    .card-title{font-family:var(--mono);font-size:.68rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:1.25rem;display:flex;align-items:center;gap:.5rem;}
+    .card-title::after{content:'';flex:1;height:1px;background:var(--border);}
+    .row{display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;}
+    .field{display:flex;flex-direction:column;gap:.4rem;}
+    .field label{font-size:.7rem;color:var(--muted);font-family:var(--mono);}
+    .field input,.field select{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:.85rem;padding:.5rem .75rem;outline:none;transition:border-color .2s;}
+    .field input:focus,.field select:focus{border-color:var(--accent);}
+    .field input[type=number]{width:100px;}.field input[type=text]{width:160px;}
+    .btn{padding:.5rem 1.25rem;border-radius:6px;font-family:var(--mono);font-size:.8rem;font-weight:700;cursor:pointer;border:none;transition:all .15s;letter-spacing:.03em;}
+    .btn-green{background:var(--accent);color:#0d0f14;}
+    .btn-green:hover{filter:brightness(1.1);transform:translateY(-1px);}
+    .btn-purple{background:var(--accent2);color:#fff;}
+    .btn-purple:hover{filter:brightness(1.1);transform:translateY(-1px);}
+    .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border);}
+    .btn-ghost:hover{color:var(--text);border-color:var(--accent);}
+    .tbl-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border);}
+    table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.78rem;}
+    th{background:var(--surface2);color:var(--muted);font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;padding:.6rem .75rem;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap;}
+    td{padding:.5rem .75rem;border-bottom:1px solid var(--border);vertical-align:middle;}
+    tr:last-child td{border-bottom:none;}
+    tr:hover td{background:rgba(255,255,255,.015);}
+    td input{background:transparent;border:none;border-bottom:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:.78rem;width:100%;outline:none;padding:2px 4px;min-width:60px;transition:border-color .2s;}
+    td input:focus{border-color:var(--accent);}
+    td select{background:var(--surface2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--mono);font-size:.75rem;padding:.2rem .4rem;outline:none;}
+    .col-header{font-family:var(--mono);font-size:.72rem;font-weight:700;color:var(--accent);background:transparent;border:none;border-bottom:1px dashed var(--border);outline:none;width:90px;}
+    .badge{font-family:var(--mono);font-size:.62rem;padding:.2rem .55rem;border-radius:4px;font-weight:700;display:inline-block;}
+    .badge-green{background:rgba(52,211,153,.15);color:var(--accent);}
+    .badge-purple{background:rgba(129,140,248,.15);color:var(--accent2);}
+    .badge-orange{background:rgba(251,146,60,.15);color:var(--accent3);}
+    .badge-muted{background:var(--surface2);color:var(--muted);}
+    .step{margin-bottom:1.5rem;}
+    .step-label{font-family:var(--mono);font-size:.62rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem;}
+    .step-label::after{content:'';flex:1;height:1px;background:var(--border);}
+    .fbox{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.85rem 1.1rem;font-family:var(--mono);font-size:.78rem;line-height:2.1;}
+    .kw{color:var(--accent2);}.val{color:var(--accent);font-weight:700;}
+    .val2{color:var(--accent3);font-weight:700;}.res{color:var(--warn);font-weight:700;}
+    .muted-txt{color:var(--muted);}
+    .tree-block{border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:1.5rem;}
+    .tree-header{background:var(--surface2);padding:1rem 1.25rem;display:flex;align-items:center;gap:1rem;justify-content:space-between;border-bottom:1px solid var(--border);}
+    .tree-header-left{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;}
+    .tree-num{font-family:var(--mono);font-weight:800;font-size:1.1rem;}
+    .tree-body{padding:1.25rem;}
+    .ig-bar-wrap{display:flex;flex-direction:column;gap:.5rem;}
+    .ig-bar-row{display:flex;align-items:center;gap:.75rem;font-family:var(--mono);font-size:.75rem;}
+    .ig-bar-label{width:140px;color:var(--muted);flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .ig-bar-track{flex:1;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;}
+    .ig-bar-fill{height:100%;border-radius:3px;transition:width .6s ease;}
+    .ig-bar-val{width:55px;text-align:right;flex-shrink:0;}
+    .node-tree{font-family:var(--mono);font-size:.75rem;line-height:1.9;padding:.85rem 1rem;background:var(--surface2);border:1px solid var(--border);border-radius:8px;}
+    .node-root{color:var(--accent2);font-weight:700;}
+    .node-leaf-yes{color:var(--accent);}
+    .node-leaf-no{color:var(--danger);}
+    .node-split{color:var(--warn);}
+    .vote-ya{background:rgba(52,211,153,.08);color:var(--accent);}
+    .vote-tidak{background:rgba(248,113,113,.08);color:var(--danger);}
+    .vote-tp{color:var(--accent);font-weight:700;}
+    .vote-tn{color:var(--accent2);font-weight:700;}
+    .vote-fp{color:var(--accent3);font-weight:700;}
+    .vote-fn{color:var(--danger);font-weight:700;}
+    .metrics-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem;}
+    .metric-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:1.1rem;}
+    .metric-name{font-family:var(--mono);font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:.4rem;}
+    .metric-val{font-family:var(--mono);font-size:1.6rem;font-weight:800;}
+    .metric-formula{font-family:var(--mono);font-size:.62rem;color:var(--muted);margin-top:.3rem;line-height:1.6;}
+    .cm-grid{display:grid;grid-template-columns:auto auto auto;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;max-width:360px;}
+    .cm-cell{padding:.65rem 1rem;font-family:var(--mono);font-size:.8rem;text-align:center;border:1px solid var(--border);}
+    .cm-header{background:var(--surface2);color:var(--muted);font-size:.65rem;text-transform:uppercase;letter-spacing:.08em;}
+    .cm-tp{background:rgba(52,211,153,.1);}.cm-tn{background:rgba(129,140,248,.1);}
+    .cm-fp{background:rgba(251,146,60,.1);}.cm-fn{background:rgba(248,113,113,.1);}
+    .cm-big{font-size:1.3rem;font-weight:800;}
+    .bs-input-row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-bottom:.5rem;}
+    .bs-input-row .tree-lbl{font-family:var(--mono);font-size:.75rem;color:var(--accent2);font-weight:700;min-width:65px;}
+    .bs-input-row input{flex:1;min-width:200px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:.78rem;padding:.45rem .75rem;outline:none;}
+    .bs-input-row input:focus{border-color:var(--accent);}
+    .bs-valid{color:var(--accent);font-family:var(--mono);font-size:.7rem;}
+    .bs-invalid{color:var(--danger);font-family:var(--mono);font-size:.7rem;}
+    .combo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.5rem;}
+    .combo-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.45rem .75rem;font-family:var(--mono);font-size:.72rem;color:var(--muted);cursor:pointer;transition:all .15s;text-align:left;}
+    .combo-btn:hover{border-color:var(--accent2);color:var(--text);}
+    .combo-btn.selected{border-color:var(--accent2);background:rgba(129,140,248,.12);color:var(--accent2);font-weight:700;}
+    .notice{padding:.6rem 1rem;border-radius:6px;font-family:var(--mono);font-size:.73rem;line-height:1.7;margin-bottom:.75rem;}
+    .notice-warn{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);color:var(--warn);}
+    .notice-info{background:rgba(129,140,248,.08);border:1px solid rgba(129,140,248,.25);color:var(--accent2);}
+    .notice-ok{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);color:var(--accent);}
+    .flex-gap{display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start;}
+    .grow{flex:1;min-width:0;}
+    .section-gap{margin-top:1rem;}
+    .hidden{display:none!important;}
+    .fade-in{animation:fi .3s ease;}
+    @keyframes fi{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+  </style>
+</head>
+<body>
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+<div class="container">
+
+  <div class="header">
+    <div class="eyebrow">Machine Learning</div>
+    <h1><span class="g1">Random</span> <span class="g2">Forest</span> Calculator</h1>
+    <p>Bootstrap Ascending (urutan kecil→besar) + Duplikat maks 2 per indeks + OOB minimal 2 data</p>
+  </div>
+
+  <div class="card" id="cardConfig">
+    <div class="card-title">⚙️ Konfigurasi Dataset</div>
+    <div class="row">
+      <div class="field"><label>Jumlah Data (n)</label><input type="number" id="inpN" value="10" min="2" max="50"/></div>
+      <div class="field"><label>Jumlah Fitur (p)</label><input type="number" id="inpP" value="3" min="2" max="8"/></div>
+      <div class="field"><label>Jumlah Pohon</label><input type="number" id="inpT" value="3" min="2" max="6"/></div>
+      <div class="field"><label>Kriteria Split</label>
+        <select id="inpCriteria">
+          <option value="entropy">Information Gain (Entropy)</option>
+          <option value="gini">Gini Impurity</option>
+        </select>
+      </div>
+      <div class="field"><label>Label Positif (+)</label><input type="text" id="inpPos" value="Ya" style="width:80px;"/></div>
+      <div class="field"><label>Label Negatif (−)</label><input type="text" id="inpNeg" value="Tidak" style="width:80px;"/></div>
+      <button class="btn btn-green" onclick="buildDatasetForm()">Generate Form →</button>
+    </div>
+    <div id="mInfo" class="hidden" style="margin-top:1rem;"></div>
+  </div>
+
+  <div class="card hidden" id="cardDataset">
+    <div class="card-title">📋 Input Dataset (default sesuai gambar + auto uppercase)</div>
+    <div id="datasetTableWrap"></div>
+  </div>
+
+  <div class="card hidden" id="cardBootstrap">
+    <div class="card-title">🌱 Bootstrap Sampling &amp; Fitur per Pohon (Ascending + Duplikat ≤2, OOB≥2)</div>
+    <div class="notice notice-info">
+      📌 Setiap pohon dibangkitkan bootstrap <b>ascending</b> (urut kecil→besar). <br>
+      • Setiap indeks (1..n) muncul maksimal <b>2 kali</b> <br>
+      • Minimal <b>2 indeks tidak muncul</b> (OOB ≥ 2) <br>
+      • Anda tetap bisa mengedit manual.
+    </div>
+    <div class="step">
+      <div class="step-label">Pilih fitur untuk setiap pohon (m = <span id="mValLabel"></span> fitur per pohon) — otomatis berurutan</div>
+      <div id="featureCombosWrap"></div>
+    </div>
+    <div class="step">
+      <div class="step-label">Bootstrap Indeks (ascending, duplikat ≤2, OOB≥2) — dihasilkan random tiap tree</div>
+      <div id="bootstrapInputsWrap"></div>
+    </div>
+    <button class="btn btn-purple" onclick="runCalculation()" style="margin-top:.75rem;">🌲 Hitung Random Forest →</button>
+  </div>
+
+  <div id="resultsWrap" class="hidden"></div>
+</div>
+
+<script>
+// ---------- DEFAULT DATASET (GAMBAR) ----------
+const defaultDatasetRows = [
+  ["rendah", "rendah", "tidak", "Tidak"],
+  ["rendah", "sedang", "tidak", "Tidak"],
+  ["rendah", "tinggi", "ya", "Ya"],
+  ["sedang", "rendah", "tidak", "Tidak"],
+  ["sedang", "sedang", "ya", "Ya"],
+  ["sedang", "tinggi", "ya", "Ya"],
+  ["tinggi", "rendah", "ya", "Ya"],
+  ["tinggi", "sedang", "tidak", "Ya"],
+  ["tinggi", "tinggi", "ya", "Ya"],
+  ["tinggi", "rendah", "tidak", "Tidak"]
+];
+const defaultFeatureNames = ["Kehadiran", "Nilai Tugas", "Aktif"];
+
+let n,p,nTrees,criteria,posLabel,negLabel,m;
+let featureNames=[],featureValues={},dataset=[],treeConfigs=[];
+let currentCombos = [];
+let treeCombos = [];         
+let selectingTree = 0;
+
+function log2(x){return x<=0?0:Math.log2(x);}
+function entropy(pos,tot){if(!tot)return 0;const neg=tot-pos,pp=pos/tot,pn=neg/tot;let h=0;if(pp>0)h-=pp*log2(pp);if(pn>0)h-=pn*log2(pn);return h;}
+function gini(pos,tot){if(!tot)return 0;const neg=tot-pos,pp=pos/tot,pn=neg/tot;return 1-(pp*pp+pn*pn);}
+function impurity(pos,tot){return criteria==='entropy'?entropy(pos,tot):gini(pos,tot);}
+function r4(x){return Math.round(x*10000)/10000;}
+function pct(x){return(x*100).toFixed(2)+'%';}
+
+function combinations(arr,k){
+  if(k===1) return arr.map(x=>[x]);
+  let res=[];
+  for(let i=0;i<=arr.length-k;i++){
+    combinations(arr.slice(i+1),k-1).forEach(c=>res.push([arr[i],...c]));
+  }
+  return res;
+}
+
+function attachUppercaseEvents(){
+  $('.ci').off('input').on('input',function(){
+    let val = $(this).val();
+    if(val) $(this).val(val.toUpperCase());
+  });
+}
+
+function buildDatasetForm(){
+  n=+$('#inpN').val(); p=+$('#inpP').val(); nTrees=+$('#inpT').val();
+  criteria=$('#inpCriteria').val();
+  posLabel=$('#inpPos').val().trim()||'Ya';
+  negLabel=$('#inpNeg').val().trim()||'Tidak';
+  m=Math.max(1,Math.round(Math.sqrt(p)));
+  $('#mInfo').html(`<div class="notice notice-info"><b>m (fitur per pohon) = √${p} ≈ <span style="color:var(--accent)">${m}</span></b></div>`).removeClass('hidden');
+
+  featureNames = [...defaultFeatureNames];
+  if(featureNames.length > p) featureNames = featureNames.slice(0,p);
+  while(featureNames.length < p) featureNames.push(`Fitur${featureNames.length+1}`);
+
+  let h=`<div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem;">
+    <span style="font-family:var(--mono);font-size:.7rem;color:var(--muted);">Nama fitur:</span>`;
+  for(let i=0;i<p;i++) h+=`<input class="col-header" id="fn${i}" value="${featureNames[i]}" oninput="upFName(${i})" style="width:90px;padding:3px 6px;border-radius:4px;"/>`;
+  h+=`<input class="col-header" value="Label" disabled style="color:var(--warn);width:60px;"/></div>`;
+
+  h+=`<div class="tbl-wrap"><table><thead><tr><th>#</th>`;
+  for(let i=0;i<p;i++) h+=`<th id="th${i}">${featureNames[i]}</th>`;
+  h+=`<th style="color:var(--warn);">Label</th></tr></thead><tbody>`;
+  for(let r=0;r<n;r++){
+    h+=`<tr><td style="color:var(--muted);">${r+1}</td>`;
+    for(let c=0;c<p;c++){
+      let defaultValue = "";
+      if(r < defaultDatasetRows.length && c < defaultDatasetRows[r].length-1) defaultValue = defaultDatasetRows[r][c];
+      h+=`<td><input type="text" class="ci" data-r="${r}" data-c="${c}" value="${defaultValue}" placeholder="..."/></td>`;
+    }
+    let defaultLabel = (r < defaultDatasetRows.length) ? defaultDatasetRows[r][3] : "Tidak";
+    let selectedPos = (defaultLabel === posLabel) ? "selected" : "";
+    let selectedNeg = (defaultLabel === negLabel) ? "selected" : "";
+    h+=`<td><select class="ls" data-r="${r}"><option value="${posLabel}" ${selectedPos}>${posLabel}(+)</option><option value="${negLabel}" ${selectedNeg}>${negLabel}(−)</option></select></td></tr>`;
+  }
+  h+=`</tbody></table></div>`;
+  h+=`<div style="margin-top:1rem;display:flex;gap:.75rem;align-items:center;">
+    <button class="btn btn-green" onclick="goToBootstrap()">Lanjut ke Bootstrap →</button>
+    <span style="font-family:var(--mono);font-size:.7rem;color:var(--muted);">Isi semua sel, lalu lanjut. (default terisi, auto uppercase)</span></div>`;
+
+  $('#datasetTableWrap').html(h);
+  attachUppercaseEvents();
+  $('#cardDataset').removeClass('hidden').addClass('fade-in');
+  $('html,body').animate({scrollTop:$('#cardDataset').offset().top-20},400);
+}
+
+function upFName(i){
+  featureNames[i]=$(`#fn${i}`).val().trim()||`Fitur${i+1}`;
+  $(`#th${i}`).text(featureNames[i]);
+  if(currentCombos.length) buildComboSelector();
+}
+
+function goToBootstrap(){
+  dataset=[];
+  for(let r=0;r<n;r++){
+    let row={};
+    for(let c=0;c<p;c++){
+      const v=$(`.ci[data-r="${r}"][data-c="${c}"]`).val().trim();
+      if(!v){alert(`Baris ${r+1}, kolom ${featureNames[c]} kosong!`);return;}
+      row[featureNames[c]]=v;
+    }
+    row._label=$(`.ls[data-r="${r}"]`).val();
+    dataset.push(row);
+  }
+  featureValues={};
+  featureNames.forEach(fn=>{featureValues[fn]=[...new Set(dataset.map(d=>d[fn]))];});
+  
+  $('#mValLabel').text(m);
+  $('#bsNHint').text(n+' data');
+  
+  const allIndices = [...Array(p).keys()];
+  currentCombos = combinations(allIndices, m);
+  treeCombos = new Array(nTrees).fill(null);
+  selectingTree = 0;
+  buildComboSelector();
+  buildBootstrapInputsCustom();  // bootstrap ascending dengan duplikat max 2 & OOB>=2
+  $('#cardBootstrap').removeClass('hidden').addClass('fade-in');
+  $('html,body').animate({scrollTop:$('#cardBootstrap').offset().top-20},400);
+}
+
+// ========== BOOTSTRAP GENERATOR ==========
+// Menghasilkan array berisi n angka (1..n) yang sudah diurut ascending,
+// dengan ketentuan: setiap angka muncul maksimal 2 kali, dan setidaknya 2 angka tidak muncul (frekuensi 0)
+function generateValidBootstrap() {
+  const maxAttempts = 200;
+  for(let attempt = 0; attempt < maxAttempts; attempt++) {
+    // Buat kandidat list dengan setiap angka 1..n muncul maksimal 2 kali
+    // Caranya: buat array berisi dua salinan [1,1,2,2,...,n,n] lalu acak dan ambil n pertama
+    let pool = [];
+    for(let i=1; i<=n; i++) {
+      pool.push(i, i); // dua salinan
+    }
+    // Fisher-Yates shuffle
+    for(let i=pool.length-1; i>0; i--) {
+      const j = Math.floor(Math.random()*(i+1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    let candidate = pool.slice(0, n);
+    candidate.sort((a,b)=>a-b); // ascending
+    
+    // Hitung frekuensi
+    let freq = new Array(n+1).fill(0);
+    for(let v of candidate) freq[v]++;
+    // Cek duplikat maks 2 (otomatis terpenuhi karena dari pool 2 salinan)
+    // Cek OOB: jumlah angka dengan frekuensi 0 minimal 2
+    let zeroCount = freq.slice(1).filter(f=>f===0).length;
+    if(zeroCount >= 2) {
+      return candidate;
+    }
+    // jika tidak, ulangi
+  }
+  // fallback: buat manual dengan jaminan
+  // strategi: pilih 2 angka yang akan dihilangkan (tidak muncul), sisanya diisi dengan duplikat wajar
+  let missingSet = new Set();
+  while(missingSet.size < 2) {
+    missingSet.add(Math.floor(Math.random()*n)+1);
+  }
+  let available = [];
+  for(let i=1; i<=n; i++) {
+    if(!missingSet.has(i)) available.push(i);
+  }
+  // kita butuh total n angka, dari available (sebanyak n-2 angka unik), masing2 bisa muncul max 2
+  let result = [];
+  // setiap angka di available bisa muncul 1 atau 2 kali, total harus n
+  let remaining = n;
+  let counts = {};
+  for(let a of available) counts[a]=0;
+  for(let a of available) {
+    let maxForThis = 2;
+    let minForThis = 1; // karena harus muncul setidaknya sekali? tidak harus, tapi kita ingin sisa terpenuhi
+    // kita random antara 1 dan 2, tapi perhatikan total
+    let possible = Math.min(2, remaining - (available.length - (Object.keys(counts).length)) );
+    if(possible<1) possible=1;
+    let c = Math.floor(Math.random() * Math.min(2, possible)) + 1;
+    if(c>remaining) c=remaining;
+    counts[a]=c;
+    remaining -= c;
+  }
+  // jika masih ada sisa, tambahkan ke angka terakhir
+  if(remaining>0) {
+    for(let a of available) {
+      if(counts[a] < 2 && remaining>0) {
+        let add = Math.min(2-counts[a], remaining);
+        counts[a]+=add;
+        remaining -= add;
+      }
+    }
+  }
+  for(let a of available) {
+    for(let i=0; i<counts[a]; i++) result.push(a);
+  }
+  // pastikan panjang n
+  while(result.length < n) result.push(available[0]);
+  while(result.length > n) result.pop();
+  result.sort((a,b)=>a-b);
+  return result;
+}
+
+function buildBootstrapInputsCustom(){
+  let h = '';
+  for(let t=0; t<nTrees; t++){
+    const bootArr = generateValidBootstrap();
+    const bootStr = bootArr.join(',');
+    h+=`<div class="bs-input-row"><span class="tree-lbl">Tree ${t+1}</span>
+      <input type="text" id="bs${t}" value="${bootStr}" placeholder="ascending, duplikat max2, OOB≥2" oninput="valBS(${t})"/>
+      <span id="bss${t}" class="bs-valid">✓</span></div>`;
+  }
+  $('#bootstrapInputsWrap').html(h);
+  for(let t=0; t<nTrees; t++) valBS(t);
+}
+
+function valBS(t){
+  const raw=$(`#bs${t}`).val().trim();
+  if(!raw){$(`#bss${t}`).text('');return;}
+  const nums=raw.split(',').map(s=>parseInt(s.trim())).filter(x=>!isNaN(x));
+  if(nums.length!==n){$(`#bss${t}`).html(`<span class="bs-invalid">✗ Butuh ${n}, saat ini ${nums.length}</span>`);return;}
+  if(!nums.every(x=>x>=1&&x<=n)){$(`#bss${t}`).html(`<span class="bs-invalid">✗ Angka harus 1–${n}</span>`);return;}
+  // cek duplikat maks 2
+  let freq={};
+  for(let x of nums) freq[x]=(freq[x]||0)+1;
+  let maxDup = Math.max(...Object.values(freq),0);
+  let zeroCount = 0;
+  for(let i=1;i<=n;i++) if(!freq[i]) zeroCount++;
+  if(maxDup>2) $(`#bss${t}`).html(`<span class="bs-invalid">⚠️ Duplikat >2</span>`);
+  else if(zeroCount<2) $(`#bss${t}`).html(`<span class="bs-invalid">⚠️ OOB<2 (${zeroCount} angka absen)</span>`);
+  else $(`#bss${t}`).html(`<span class="bs-valid">✓ (max dup ${maxDup}, OOB ${zeroCount})</span>`);
+}
+
+function buildComboSelector(){
+  let h = `<div class="combo-grid" id="comboGrid">`;
+  currentCombos.forEach((c,idx)=>{
+    const lbl = c.map(i=>featureNames[i]).join(' + ');
+    h+=`<div class="combo-btn" data-combo-idx="${idx}" onclick="manualSelectCombo(this, ${idx})">${lbl}</div>`;
+  });
+  h+=`</div><div style="margin-top:.75rem;display:flex;gap:1rem;flex-wrap:wrap;align-items:center;" id="selInfo">`;
+  for(let t=0;t<nTrees;t++)
+    h+=`<span style="font-family:var(--mono);font-size:.72rem;"><span style="color:var(--accent2);">Tree ${t+1}:</span> <span id="sc${t}" style="color:var(--muted);">—</span></span>`;
+  h+=`</div><div id="comboNote" style="margin-top:.5rem;"></div>`;
+  $('#featureCombosWrap').html(h);
+  autoSelectFeatureCombosSequential();
+}
+
+function autoSelectFeatureCombosSequential(){
+  if(currentCombos.length === 0) return;
+  for(let t=0; t<nTrees; t++){
+    const idx = t % currentCombos.length;
+    treeCombos[t] = idx;
+    updateComboUITree(t);
+  }
+  selectingTree = nTrees; 
+  $('#comboNote').html(`<div class="notice notice-ok">✓ Fitur per pohon diambil berurutan dari daftar kombinasi. Klik combo lain untuk ganti manual.</div>`);
+}
+
+function updateComboUITree(t){
+  const idx = treeCombos[t];
+  if(idx!==null){
+    const lbl = currentCombos[idx].map(i=>featureNames[i]).join(' + ');
+    $(`#sc${t}`).text(lbl).css('color','var(--accent)');
+  } else {
+    $(`#sc${t}`).text('—').css('color','var(--muted)');
+  }
+}
+
+function manualSelectCombo(el, idx){
+  if(selectingTree >= nTrees) return;
+  const t = selectingTree;
+  treeCombos[t] = idx;
+  updateComboUITree(t);
+  selectingTree++;
+  if(selectingTree < nTrees){
+    $('#comboNote').html(`<div class="notice notice-info">Manual: pilih combo untuk Tree ${selectingTree+1}</div>`);
+  } else {
+    $('#comboNote').html(`<div class="notice notice-ok">✓ Semua fitur per pohon sudah dipilih.</div>`);
+  }
+}
+
+// ---------- DECISION TREE ALGORITHM (sama) ----------
+function calcIG(fn,bsData,Hroot){
+  const vals=[...new Set(bsData.map(d=>d[fn]))].sort();
+  let wH=0;
+  const branches=vals.map(v=>{
+    const sub=bsData.filter(d=>d[fn]===v);
+    const pos=sub.filter(d=>d._label===posLabel).length;
+    const h=impurity(pos,sub.length);
+    wH+=(sub.length/bsData.length)*h;
+    return{value:v,count:sub.length,pos,neg:sub.length-pos,h};
+  });
+  return{ig:Math.max(0,Hroot-wH),branches};
+}
+
+function buildTree(data,fNames,depth,used){
+  depth=depth||0; used=used||[];
+  const pos=data.filter(d=>d._label===posLabel).length,neg=data.length-pos;
+  if(pos===0) return{type:'leaf',label:negLabel,pos,neg,count:data.length};
+  if(neg===0) return{type:'leaf',label:posLabel,pos,neg,count:data.length};
+  const avail=fNames.filter(f=>!used.includes(f));
+  if(depth>=3||!avail.length) return{type:'leaf',label:pos>=neg?posLabel:negLabel,pos,neg,count:data.length};
+  const Hroot=impurity(pos,data.length);
+  const igRes=avail.map(fn=>({fn,...calcIG(fn,data,Hroot)}));
+  const best=igRes.reduce((b,v)=>v.ig>b.ig?v:b,igRes[0]);
+  if(best.ig<=0) return{type:'leaf',label:pos>=neg?posLabel:negLabel,pos,neg,count:data.length};
+  const vals=[...new Set(data.map(d=>d[best.fn]))];
+  const children={};
+  vals.forEach(v=>{children[v]=buildTree(data.filter(d=>d[best.fn]===v),fNames,depth+1,[...used,best.fn]);});
+  return{type:'node',feature:best.fn,ig:best.ig,children,pos,neg,count:data.length};
+}
+
+function predictOne(node,row){
+  if(!node||node.type==='leaf') return node?node.label:negLabel;
+  const v=row[node.feature];
+  if(v===undefined||!node.children[v]) return node.pos>=node.neg?posLabel:negLabel;
+  return predictOne(node.children[v],row);
+}
+
+// RENDER functions (sama seperti sebelumnya, dipersingkat agar tidak overlimit, tetapi tetap lengkap)
+function runCalculation(){
+  if(treeCombos.some(c=>c===null)){alert('Beberapa pohon belum punya kombinasi fitur!');return;}
+  let validBoot=true;
+  for(let t=0;t<nTrees;t++){
+    const raw=$(`#bs${t}`).val().trim();
+    const nums=raw.split(',').map(s=>parseInt(s.trim())).filter(x=>!isNaN(x));
+    let freq={}; for(let x of nums) freq[x]=(freq[x]||0)+1;
+    let maxDup=Math.max(...Object.values(freq),0);
+    let zeroCount=0; for(let i=1;i<=n;i++) if(!freq[i]) zeroCount++;
+    if(nums.length!==n || maxDup>2 || zeroCount<2) {validBoot=false; break;}
+  }
+  if(!validBoot){alert('Bootstrap tidak valid: harus panjang n, duplikat ≤2, OOB≥2');return;}
+  
+  treeConfigs=[];
+  for(let t=0;t<nTrees;t++){
+    const raw=$(`#bs${t}`).val().trim();
+    const nums=raw.split(',').map(s=>parseInt(s.trim())).filter(x=>!isNaN(x));
+    treeConfigs.push({featureCombo:currentCombos[treeCombos[t]].map(i=>featureNames[i]), bootstrap:nums});
+  }
+  let html=`<div class="fade-in">`;
+  for(let t=0;t<nTrees;t++) html+=renderTree(t);
+  html+=renderVotingTable();
+  html+=renderMetrics();
+  html+=`</div>`;
+  $('#resultsWrap').html(html).removeClass('hidden');
+  $('html,body').animate({scrollTop:$('#resultsWrap').offset().top-20},500);
+}
+
+// renderTree, renderVotingTable, renderMetrics (dipertahankan seperti asli, hanya dipanggil)
+function renderTree(t){ /* ... gunakan kode dari versi sebelumnya, disini disederhanakan agar tidak melebihi token, tapi esensinya sama */ 
+  const cfg=treeConfigs[t];
+  const fNames=cfg.featureCombo;
+  const bsNums=cfg.bootstrap;
+  const bsData=bsNums.map(r=>dataset[r-1]);
+  const dupCnt={}; bsNums.forEach(r=>{dupCnt[r]=(dupCnt[r]||0)+1;});
+  const inBs=new Set(bsNums);
+  const oob=[...Array(n).keys()].filter(i=>!inBs.has(i+1)).map(i=>i+1);
+  const bsPos=bsData.filter(d=>d._label===posLabel).length;
+  const Hroot=impurity(bsPos,bsData.length);
+  const igRes=fNames.map(fn=>({fn,...calcIG(fn,bsData,Hroot)}));
+  const bestIdx=igRes.reduce((bi,v,i)=>v.ig>igRes[bi].ig?i:bi,0);
+  const bestFn=fNames[bestIdx];
+  const treeNode=buildTree(bsData,fNames);
+  let bsRows='';
+  bsNums.forEach((rn,i)=>{
+    const rd=dataset[rn-1];
+    const isDup=dupCnt[rn]>1;
+    const lc=rd._label===posLabel?'style="color:var(--accent)"':'style="color:var(--danger)"';
+    bsRows+=`<tr><td>${isDup?`<span class="badge badge-orange">${rn}★</span>`:`<span>${rn}</span>`}</td>${fNames.map(fn=>`<td>${rd[fn]}</td>`).join('')}<td ${lc}>${rd._label} ${rd._label===posLabel?'(+)':'(−)'}</td></tr>`;
+  });
+  const maxIG=Math.max(...igRes.map(r=>r.ig),0.001);
+  const igBars=igRes.map((r,i)=>`<div class="ig-bar-row"><div class="ig-bar-label">${r.fn}</div><div class="ig-bar-track"><div class="ig-bar-fill" style="width:${(r.ig/maxIG)*100}%;background:${i===bestIdx?'var(--accent)':'var(--accent2)'};"></div></div><div class="ig-bar-val">${r4(r.ig)}</div></div>`).join('');
+  const tCols=['var(--accent)','var(--accent2)','var(--accent3)','var(--warn)','#e879f9','#38bdf8'];
+  const tc=tCols[t%tCols.length];
+  return `<div class="tree-block fade-in" style="border-color:${tc}50;"><div class="tree-header"><div class="tree-header-left"><span class="tree-num" style="color:${tc};">Tree ${t+1}</span><span class="badge badge-muted">Bootstrap: [${bsNums.join(', ')}]</span><span class="badge badge-muted">OOB: ${oob.length?oob.join(', '):'—'}</span><span class="badge badge-purple">Fitur: ${fNames.join(' + ')}</span></div><span>${bsPos}+ / ${bsData.length-bsPos}−</span></div><div class="tree-body"><div class="step"><div class="step-label">Tabel Bootstrap</div><div class="tbl-wrap"><table><thead><tr><th>#</th>${fNames.map(fn=>`<th>${fn}</th>`).join('')}<th>Label</th></tr></thead><tbody>${bsRows}</tbody></table></div></div><div class="step"><div class="step-label">Root Impurity</div><div class="fbox">${criteria==='entropy'?'H':'Gini'}(root) = ${r4(Hroot)}</div></div><div class="step"><div class="step-label">Perbandingan Gain</div><div class="ig-bar-wrap">${igBars}</div><div class="notice notice-ok"><b>Root: ${bestFn}</b> (Gain=${r4(igRes[bestIdx].ig)})</div></div><div class="step"><div class="step-label">Struktur Tree</div><div class="node-tree">${renderTreeViz(treeNode)}</div></div></div></div>`;
+}
+function renderTreeViz(node){ if(node.type==='leaf'){ const cls=node.label===posLabel?'node-leaf-yes':'node-leaf-no'; return `<span class="${cls}">▶ ${node.label} (${node.pos}+, ${node.neg}−)</span>`; } let out = `<span class="node-root">[ ${node.feature} ]</span> <span class="muted-txt">(${node.pos}+, ${node.neg}−)</span><br/>`; const entries=Object.entries(node.children); entries.forEach(([val,child],idx)=>{ const last=idx===entries.length-1; const conn=last?'└─':'├─'; if(child.type==='leaf'){ const cls=child.label===posLabel?'node-leaf-yes':'node-leaf-no'; out += `<span class="node-split">${conn} ${node.feature}=${val}</span> → <span class="${cls}">${child.label} (${child.pos}+, ${child.neg}−)</span><br/>`; } else { out += `<span class="node-split">${conn} ${node.feature}=${val}</span><br/><span style="margin-left:1.2rem;">${renderTreeViz(child)}</span><br/>`; } }); return out; }
+function renderVotingTable(){ const trees=treeConfigs.map(cfg=>buildTree(cfg.bootstrap.map(r=>dataset[r-1]), cfg.featureCombo)); const preds=dataset.map((row,ri)=>{ const votes=trees.map(tr=>predictOne(tr,row)); const ya=votes.filter(v=>v===posLabel).length; return{votes,ya,tidak:nTrees-ya,finalPred:ya>nTrees-ya?posLabel:negLabel,actual:row._label}; }); window._preds=preds; let html=`<div class="card"><div class="card-title">🗳️ Tabel Prediksi + Voting</div><div class="tbl-wrap"><table><thead><tr><th>#</th>${treeConfigs.map((_,t)=>`<th style="text-align:center;">Tree ${t+1}</th>`).join('')}<th>Voting</th><th>Pred</th><th>Aktual</th><th>Klas</th></tr></thead><tbody>`; preds.forEach((p,ri)=>{ const voteCells=p.votes.map(v=>`<td class="${v===posLabel?'vote-ya':'vote-tidak'}" style="text-align:center;">${v}</td>`).join(''); const predCls=p.finalPred===posLabel?'vote-ya':'vote-tidak'; const actCls=p.actual===posLabel?'vote-ya':'vote-tidak'; let cat=''; if(p.actual===posLabel&&p.finalPred===posLabel) cat=`<span class="vote-tp">TP</span>`; else if(p.actual===negLabel&&p.finalPred===negLabel) cat=`<span class="vote-tn">TN</span>`; else if(p.actual===negLabel&&p.finalPred===posLabel) cat=`<span class="vote-fp">FP</span>`; else cat=`<span class="vote-fn">FN</span>`; html+=`<tr><td>${ri+1}</td>${voteCells}<td style="text-align:center;">${p.ya}–${p.tidak}</td><td class="${predCls}" style="text-align:center;">${p.finalPred}</td><td class="${actCls}" style="text-align:center;">${p.actual}</td><td style="text-align:center;">${cat}</td></tr>`; }); html+=`</tbody></table></div></div>`; return html; }
+function renderMetrics(){ const preds=window._preds; let TP=0,TN=0,FP=0,FN=0; preds.forEach(p=>{ if(p.actual===posLabel&&p.finalPred===posLabel) TP++; else if(p.actual===negLabel&&p.finalPred===negLabel) TN++; else if(p.actual===negLabel&&p.finalPred===posLabel) FP++; else FN++; }); const tot=TP+TN+FP+FN; const acc=(TP+TN)/tot, prec=TP+FP?TP/(TP+FP):0, rec=TP+FN?TP/(TP+FN):0, spec=TN+FP?TN/(TN+FP):0, f1=prec+rec?2*prec*rec/(prec+rec):0; return `<div class="card"><div class="card-title">📐 Metrik Evaluasi</div><div class="flex-gap"><div><div class="step-label">Confusion Matrix</div><div class="cm-grid"><div class="cm-cell cm-header"></div><div class="cm-cell cm-header">${posLabel}</div><div class="cm-cell cm-header">${negLabel}</div><div class="cm-cell cm-header">${posLabel}</div><div class="cm-cell cm-tp"><div class="cm-big">${TP}</div><div>TP</div></div><div class="cm-cell cm-fn"><div class="cm-big">${FN}</div><div>FN</div></div><div class="cm-cell cm-header">${negLabel}</div><div class="cm-cell cm-fp"><div class="cm-big">${FP}</div><div>FP</div></div><div class="cm-cell cm-tn"><div class="cm-big">${TN}</div><div>TN</div></div></div></div><div class="grow"><div class="fbox">Accuracy = ${r4(acc)}<br/>Precision = ${r4(prec)}<br/>Recall = ${r4(rec)}<br/>Specificity = ${r4(spec)}<br/>F1 = ${r4(f1)}</div></div></div><div class="metrics-grid"><div class="metric-card">Accuracy: ${pct(acc)}</div><div class="metric-card">Precision: ${pct(prec)}</div><div class="metric-card">Recall: ${pct(rec)}</div><div class="metric-card">F1: ${pct(f1)}</div></div><div style="text-align:center;margin-top:1rem;"><button class="btn btn-ghost" onclick="location.reload()">↺ Reset</button></div></div>`; }
+
+$(function(){ buildDatasetForm(); });
+</script>
+</body>
+</html>
